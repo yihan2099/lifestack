@@ -40,7 +40,9 @@ Data sources (all read-only):
 - `.lifestack/data/finance/transactions.md` — expense data
 - `.lifestack/data/finance/budgets.md` — budget definitions
 - `.lifestack/data/finance/goals.md` — savings goals and contributions
-- `.lifestack/data/finance/holdings.md` — investment holdings (if exists)
+- `.lifestack/data/finance/holdings.md` — investment holdings from invest-watch (if exists)
+- `.lifestack/data/finance/portfolio.md` — investment transaction log (if exists)
+- `.lifestack/data/finance/journal.md` — investment theses and post-mortems (if exists)
 
 ## Phase 1: Validate
 
@@ -55,7 +57,9 @@ Read all available finance data files:
 1. **Transactions** (`transactions.md`): Filter to the target period.
 2. **Budgets** (`budgets.md`): Read active budget definitions.
 3. **Goals** (`goals.md`): Read savings goals and contribution log.
-4. **Holdings** (`holdings.md`): Read if exists (optional, for monthly review only).
+4. **Holdings** (`holdings.md`): Read if exists (invest-watch data).
+5. **Portfolio** (`portfolio.md`): Read if exists (investment transaction log).
+6. **Journal** (`journal.md`): Read if exists (investment theses and conviction history).
 
 ## Phase 3A: Execute — Weekly Review
 
@@ -80,7 +84,13 @@ Generate a weekly summary with these sections:
 - Any contributions made this week
 - Updated progress on active goals
 
-### Section 5: Notable Transactions
+### Section 5: Investment Activity (if portfolio.md exists)
+- Portfolio value change this week (if current prices are available via holdings.md or web lookup)
+- Recent investment transactions logged this week (buys, sells from portfolio.md)
+- Any invest-watch alerts triggered (if holdings.md has alert thresholds)
+- If no portfolio data exists, skip this section silently
+
+### Section 6: Notable Transactions
 - Largest single transaction
 - Any transactions over a threshold (e.g., > $100 or > 2x the user's average transaction)
 - Any uncategorized transactions that need attention
@@ -113,22 +123,52 @@ Generate a comprehensive monthly review with all weekly sections plus:
 - Contributions this month
 - Projected completion dates
 
-### Section 5: Investment Snapshot (if holdings.md exists)
-- Current portfolio value (attempt price lookup or note prices may be stale)
-- Overall gain/loss
-- Any triggered alerts
+### Section 5: Portfolio Performance Summary (if portfolio.md exists)
+- Total portfolio value (current, using prices from holdings.md or web lookup)
+- Total return: unrealized + realized gains/losses
+- Best and worst performing holdings this month (by percentage change)
+- Month-over-month portfolio value change if previous month data available
+- If portfolio.md does not exist but holdings.md does, fall back to a basic holdings snapshot (current values, overall gain/loss, triggered alerts)
 
-### Section 6: Trends and Insights
+### Section 6: Allocation Drift Analysis (if portfolio.md exists)
+- Current allocation by asset class (stocks, crypto, bonds, etfs, cash, etc.)
+- If allocation targets are defined in portfolio.md, show target vs actual with drift
+- Flag any asset class with drift > 5 percentage points
+- Rebalancing suggestions if drift is significant
+
+### Section 7: Investment Thesis Review (if journal.md exists)
+- List any active theses where conviction changed this month (from conviction history table)
+- Highlight positions where conviction dropped by 2+ points (may need attention)
+- Count of active theses, average conviction level
+- Any postmortems recorded this month (summarize the lessons)
+- Prompt: "Consider running `investment-journal review --asset <ticker>` for positions held longer than their stated time horizon."
+
+### Section 8: Dividend and Income Summary (if portfolio.md exists)
+- Any dividend or income transactions logged this month (look for notes containing "dividend", "distribution", "income", or "yield" in portfolio.md)
+- Total investment income this month
+- If no income transactions found, note: "No dividend/income transactions recorded this month."
+
+### Section 9: Investment Journal Entries (if journal.md exists)
+- New theses created this month
+- Updates made to existing theses (conviction changes, notes added)
+- Positions closed with postmortems this month
+- If no journal activity this month, note: "No investment journal entries this month."
+
+### Section 10: Trends and Insights
 - Spending trend over last 3 months (if data available)
 - Category shifts (what increased, what decreased)
 - Patterns (e.g., "Weekend spending is 2x weekday spending")
+- Investment portfolio trend over last 3 months (if portfolio data available)
 
-### Section 7: Recommendations
+### Section 11: Recommendations
 - Actionable suggestions based on the data:
   - Budget adjustments (if consistently over/under)
   - Categories to watch
   - Savings pace adjustments
   - Uncategorized transactions to clean up
+  - Allocation rebalancing if drift is significant (from portfolio data)
+  - Thesis reviews for positions past their stated time horizon (from journal data)
+  - Conviction check for positions where unrealized loss exceeds -20%
 - Keep recommendations specific and data-driven, not generic advice
 
 Skip to Output.
@@ -142,8 +182,8 @@ Append an entry to `.lifestack/audit/{YYYY-MM-DD}.md`:
 ```
 
 Examples:
-- `[08:00] finance/finance-review: weekly — Generated weekly review (Feb 17–23, total: $580.30)`
-- `[08:00] finance/finance-review: monthly — Generated monthly review (Feb 2026, total: $2,340.50, 3 budgets on track, 1 over)`
+- `[08:00] finance/finance-review: weekly — Generated weekly review (Feb 17–23, total spent: $580.30, portfolio: $66,675)`
+- `[08:00] finance/finance-review: monthly — Generated monthly review (Feb 2026, total spent: $2,340.50, 3 budgets on track, 1 over, portfolio: +8.3%, 5 active theses)`
 
 ## Output
 
@@ -177,6 +217,12 @@ Total spent: $580.30 (↓12% from last week's $659.50)
 
 ## Savings Activity
   Emergency Fund: +$200 this week → $3,700 / $10,000 (37%)
+
+## Investment Activity
+  Portfolio value: $66,675 (↑2.1% from last week)
+  Transactions this week:
+    BUY  10 AAPL @ $185.50 ($1,860.00) — Feb 20
+  Alerts: none triggered
 
 ## Notable
   ⚡ Largest transaction: $89.00 — Amazon order (Feb 20)
@@ -224,6 +270,37 @@ Total spent: $2,340.50 (↑5% from January's $2,229.00)
   House Down Pmt    $12,500 / $50,000 [█████░░░░░░░░░░░░░░░] 25%
                     +$500 this month · Behind pace ⚠ (need $2,500/mo, contributing $500/mo)
 
+## Portfolio Performance
+  Total value:  $66,675.00 (↑8.3% from January)
+  Total return:  +$28,275 (+73.6% all-time)
+
+  Best performer:   BTC    +115.6%
+  Worst performer:  VOO    +5.9%
+
+  Realized gains this month: +$371.70 (1 sell: AAPL)
+
+## Allocation
+  Asset Class     Actual    Target    Drift
+  ────────────────────────────────────────────
+  crypto          58.6%     10.0%     +48.6% ⚠
+  etfs            21.9%     —         —
+  stocks          20.6%     60.0%     -39.4% ⚠
+  → Significant drift detected. Consider rebalancing.
+
+## Investment Theses
+  Active theses: 5 · Avg conviction: 3.0/5
+  Conviction changes this month:
+    AAPL: 4 → 3 (Feb 28) — "Earnings miss, thesis weakened"
+  Postmortems: none this month
+
+## Investment Journal Activity
+  New theses:    1 (SOL, conviction 2/5)
+  Updates:       2 (AAPL conviction ↓, NVDA notes added)
+  Closed:        0
+
+## Dividend/Income
+  No dividend/income transactions recorded this month.
+
 ## Trends (3-month view)
   Dec:  $2,100.00  ░░░░░░░░░░░░░░░░░░░░░
   Jan:  $2,229.00  ░░░░░░░░░░░░░░░░░░░░░░░
@@ -241,4 +318,9 @@ Total spent: $2,340.50 (↑5% from January's $2,229.00)
      → At current rate ($500/mo), projected completion is Jan 2034 vs Jun 2027 deadline.
      → Need to increase monthly contribution to ~$2,500 or extend the deadline.
   5. 8 uncategorized transactions this month — run `expense categorize` to clean up.
+  6. Portfolio allocation is significantly drifted from targets.
+     → Crypto is 48.6% over target; stocks are 39.4% under.
+     → Run `portfolio allocation --targets` for detailed rebalancing view.
+  7. AAPL conviction dropped to 3/5 this month.
+     → Run `investment-journal review --asset AAPL` to evaluate whether to hold or exit.
 ```
